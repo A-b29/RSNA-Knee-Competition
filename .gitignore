@@ -1,0 +1,5 @@
+data/
+working/
+__pycache__/
+*.pt
+*.npz

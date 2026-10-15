@@ -1,0 +1,30 @@
+{
+  "id": "arnavkumarmd24/raptor-sibling-train",
+  "id_no": 138626646,
+  "title": "raptor-sibling-train",
+  "code_file": "raptor-sibling-train.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "arnavkumarmd24/rsna-knee-labels-v2"
+  ],
+  "kernel_sources": [
+    "arnavkumarmd24/raptor96-corpus-s0",
+    "arnavkumarmd24/raptor96-corpus-s1",
+    "arnavkumarmd24/raptor96-corpus-s2"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:2757e0c7d1e0a9cb43da657b97e223c321a98f5014bdf64f44f2f6b083ad2b2f",
+  "machine_shape": "NvidiaTeslaT4"
+}

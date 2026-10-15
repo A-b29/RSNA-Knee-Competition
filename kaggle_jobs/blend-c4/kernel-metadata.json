@@ -1,0 +1,29 @@
+{
+  "id": "arnavkumarmd24/rsna-knee-c4-mem15",
+  "title": "rsna-knee-c4-mem15",
+  "code_file": "rsna-knee-c4-mem15.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "heliosli/rsna-knee-compact-r7cnxfsss",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004"
+  ],
+  "kernel_sources": [
+    "arnavkumarmd24/rsna-knee-members-a",
+    "arnavkumarmd24/rsna-knee-members-b"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:2757e0c7d1e0a9cb43da657b97e223c321a98f5014bdf64f44f2f6b083ad2b2f",
+  "machine_shape": "NvidiaTeslaT4"
+}

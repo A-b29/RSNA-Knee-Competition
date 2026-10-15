@@ -1,0 +1,21 @@
+{
+  "id": "arnavkumarmd24/raptor96-corpus-s0",
+  "id_no": 138623185,
+  "title": "raptor96-corpus-s0",
+  "code_file": "raptor96-corpus-s0.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:81b1e7c4b4f0f2a7e0a33943c95754b1b7af6b30d65221633a284b6b601cd84a",
+  "machine_shape": "None"
+}
