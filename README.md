@@ -3,7 +3,7 @@
 Multi-label detection of 12 knee abnormalities from raw MRI studies. Most training labels are weak: they are extracted from free-text radiology reports.
 Built for the Kaggle competition [RSNA Knee Abnormality Detection](https://www.kaggle.com/competitions/rsna-knee-abnormality-detection), which had 5,957 teams. Submissions are scored by macro ROC-AUC over the 12 findings, and inference must run offline on a T4 GPU within 9 hours.
 
-> **Status (2026-10-15):** public leaderboard **0.956** macro AUC; the top of the board is 0.966. Students trained on the denoised labels are running now. The final private-leaderboard result will be added after the 22 October 2026 deadline.
+> **Status (2026-10-15):** public leaderboard **0.956** macro AUC; the top of the board is 0.966. Final picks: the R7 + Raptor 384/224 blend and the R7 + Raptor 384 blend. A last experiment (close-up "zoom" members for input diversity) runs after the GPU quota reset. The final private-leaderboard result will be added after the 22 October 2026 deadline.
 
 ## Highlights
 
@@ -69,7 +69,7 @@ flowchart LR
 | ConvNeXt-base on labels v2 (12 epochs, SWA) | 0.9090 |
 | 4-fold teacher, each fold on 75% of the data | 0.883–0.887 (fold mean 0.890) |
 | **Labels v3** (0.5 · report + 0.5 · mapped teacher) | **0.927** |
-| Students on labels v3 | _training, to be added_ |
+| Students on labels v3 (7–8 epochs) | 0.8946 / 0.8899; no gain over old labels at the same training length |
 
 For comparison, the public Raptor model's honest held-out score is 0.9054, as stated by its author.
 
@@ -81,8 +81,7 @@ For comparison, the public Raptor model's honest held-out score is 0.9054, as st
 | + my ConvNeXt-small inside the Raptor stage (25% / 33%) | 0.954 / 0.953 |
 | + fracture ← contusion post-processing | 0.956 |
 | My 3 ConvNeXts alone (labels v2) | 0.936 |
-| Base + my 3 ConvNeXts at 15% | _pending_ |
-| 2 students alone (denoised labels v3) | _pending_ |
+| Base + my 3 ConvNeXts at 15% | 0.955 |
 
 ## What I built and what I reused
 
@@ -151,6 +150,7 @@ Python, PyTorch 2 (AMP, `torch.compile`, `channels_last`), timm (ConvNeXt, CoAtN
 
 ## Lessons learned
 
+- **Cleaner labels did not make a better student.** The denoised labels agree with gold far better (0.927 vs 0.903), but a student trained on them scored the same as one trained on the old labels for the same number of epochs. Half of each new target is the teacher's own image-based prediction, which a same-architecture student can already produce. The gain from mixing exists when both sources are available at prediction time, and at test time there are no reports.
 - **Labels beat architecture.** The biggest gains came from fixing labels and measuring them against gold, not from bigger backbones.
 - **Measure what the labels are.** The gold labels turned out to be an independent image read rather than report-derived. That single fact explains why report labels plateau at about 0.90 and why denoising works.
 - **A small gold set can't rank close models.** With 58 studies, seed noise is about ±0.006. A member scoring 0.9075 on gold still lowered the leaderboard score. I treat the gold set as a sanity check and the leaderboard as the judge.

@@ -235,6 +235,36 @@ Entries are grouped by phase and roughly in date order (October 2026).
 
 ---
 
+### D32. Result: the students did not inherit the label gain
+- **Result:** students on labels v3 scored 0.8946 (seed 42, 7 epochs) and 0.8899 (seed 7, 8 epochs) on gold.
+  - Old-label teacher folds at 7 epochs on 75% of the data scored 0.883–0.887, so v3 is ahead by at most about +0.005, within seed noise.
+  - Adding the students to the 3 old-label members lowered gold from 0.9102 to 0.9082.
+- **Explanation:** self-distillation. Half of each v3 target is the teacher's prediction from the same images and the same architecture, which the student can already produce on its own. The +0.024 label gain comes from combining two independent sources (report + image). The student keeps only the report half of that independence, and at test time there are no reports.
+- **Consequence:** the denoising lever is spent. The fresh GPU quota goes to whatever c4 and the public evidence support (input diversity), not to more v3 students.
+
+### D33. Bug: double delete in the cleanup step marked the kernel ERROR
+- **What happened:** the student launcher removed `glob("m*_smoke*") + glob("m*_last.pt")`. Both patterns match `m_s3b_smoke_last.pt`, so the second `os.remove` raised `FileNotFoundError` after both models had finished.
+- **Cost:** errored kernels can't be attached as sources, so the students' weights can't reach a submission notebook.
+- **Fix:** iterate over `set(...)`, with a local check that overlapping patterns are removed exactly once.
+- **Lesson:** the "no assert at the end" rule (D16) covers asserts but not *any* exception in the tail of the launcher. The teacher launcher was safe only because its patterns didn't overlap.
+
+### D34. Final picks: the two strongest public-base blends
+- **Evidence:** our Raptor-input members lowered the base at every weight tried: 15% → 0.955, 25% → 0.954, 33% → 0.953. Alone they scored 0.936, against 0.949 for public Raptor.
+- **Ruled out:** R7 running out of time. The commit run decoded 37 s/study over 4 parallel loaders, about 3.5–4.5 h for 1,300 studies against an 8.3 h deadline.
+- **Decision:** final picks are 57202247 (R7 + Raptor 384 + 224) and 57170367 (R7 + Raptor 384). Both scored 0.956, and they are the most different pair among the best scores. The fracture tweak (also 0.956) was left out because it was picked after looking at the data.
+
+### D35. Last bet: close-up ("zoom") members for input diversity
+- **Why:** the only public evidence of a gain on top of the base is a team adding a knee-centred crop model (+0.001). A weaker model with the *same* input as the base hurts, so a new member has to see the knee differently.
+- **Design:**
+  - The same trainer and corpus, but every window is a fixed central close-up (zoom 0.7 ≈ 100 mm, R7's local-view size) resized to 320 px.
+  - The corpus is 140 mm at 320 px (0.44 mm/px), about the acquired resolution, so cropping it loses no detail, while each structure covers more of the backbone's input.
+  - Labels v2, so zoom is the only change.
+- **Avoiding train/inference drift:** one `zoom()` function, used by `prep()` in training. `patch_957.py` copies its source verbatim into the inference stage and wraps zoomed arms. A local check asserts that the injected copy equals the trainer's output.
+- **Gate:** smoke-test training and inference before the reset. Afterwards, submit the close-up members alone first. Blend them at 15% only if they clearly beat the 0.936 of the full-field members alone.
+- **Smoke tests (2026-10-15), both passed:**
+  - Training at zoom 0.7 ran at 0.64 s/step, the same as full-field.
+  - The full submission notebook with that checkpoint as a zoomed arm scored 3 of 3 visible test studies (`MEMBER_STAGE_DONE` in 31 s, no fallback).
+
 ## Things deliberately not done
 - **Hand-labelling test images, multiple accounts, private sharing:** against the competition rules. I used only public, equally available resources.
 - **Checking for patient-ID overlap between train and test:** a grey area under the rules, and not pursued.

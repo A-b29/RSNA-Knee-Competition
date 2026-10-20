@@ -260,6 +260,8 @@ The report and the image model make *different* errors, so averaging cancels par
 
 **Why the per-finding mean is unchanged:** quantile mapping preserves the label distribution. The loss's `pos_weight` and the prior stay the same, and only *which* studies are positive shifts.
 
+**Outcome for the students (an important lesson):** students trained on v3 scored 0.890–0.895 on gold, the same as old-label models trained for the same number of epochs. The cleaner labels did not make a better image model. The reason is that half of each v3 target is the teacher's own image-based prediction, which a same-architecture student can already produce from the images. The +0.024 gain lives at the label level, because it combines two independent sources (report + image), and at test time only the images exist. In interviews this is a good example of a well-evidenced idea failing for a principled reason (self-distillation adds little new information), and of why the experiment was set up to detect that.
+
 **Per-finding effect (gold AUC, report → v3):**
 
 | Finding | Report | v3 |

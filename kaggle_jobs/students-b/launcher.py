@@ -14,6 +14,6 @@ codes = {tag: p.wait() for tag, p in runs.items()}
 for tag in runs:
     print(f"===== {tag}: exit {codes[tag]}")
     print("".join(l for l in open(f"/kaggle/working/log{tag}.txt") if " step " not in l)[-5000:])
-for f in glob.glob("/kaggle/working/m*_smoke*") + glob.glob("/kaggle/working/m*_last.pt"):
+for f in set(glob.glob("/kaggle/working/m*_smoke*") + glob.glob("/kaggle/working/m*_last.pt")):   # set: m_X_smoke_last.pt matches both
     os.remove(f)
 # No assert: a failed student must not mark the kernel as errored, or the other student's weights can't be attached.

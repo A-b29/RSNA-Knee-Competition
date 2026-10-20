@@ -32,6 +32,7 @@ WORKERS = int(os.environ.get("WORKERS", 2))
 FOLD, NFOLDS = int(os.environ.get("FOLD", -1)), int(os.environ.get("NFOLDS", 4))
 TARGETS = os.environ.get("TARGETS", "labels_llm_soft.parquet")
 COMPILE = os.environ.get("COMPILE", "0") == "1"
+ZOOM = float(os.environ.get("ZOOM", 1.0))   # <1: the model sees a fixed central close-up (ZOOM x 140 mm) of every window
 OUT = "/kaggle/working"
 SLOT_OF = np.repeat(np.arange(5), [26, 22, 18, 12, 18])   # corpus slice layout: sag fluid/other, cor fluid/other, axial
 
@@ -77,7 +78,7 @@ if LIMIT:
     train_ids, gold_ids, heldout = train_ids[:LIMIT], gold_ids[:max(8, LIMIT // 4)], heldout[:LIMIT // 4]
 assert not (set(train_ids) & set(heldout)) and not (set(train_ids + heldout) & set(gold_ids))
 labels = {**{u: soft.loc[u].values for u in train_ids + heldout}, **{u: gold.loc[u].values for u in gold_ids}}
-print(f"{ARCH} | {TARGETS} | train {len(train_ids)} | heldout fold {FOLD}: {len(heldout)} | gold-val {len(gold_ids)} | compile {COMPILE}", flush=True)
+print(f"{ARCH} | {TARGETS} | train {len(train_ids)} | heldout fold {FOLD}: {len(heldout)} | gold-val {len(gold_ids)} | compile {COMPILE} | zoom {ZOOM}", flush=True)
 
 
 def centers(mask, k, train):
@@ -132,7 +133,18 @@ def prep(x, train):
         gain = 1 + (torch.rand(B, 1, 1, 1, 1, device=dev) - 0.5) * 0.3
         bias = (torch.rand(B, 1, 1, 1, 1, device=dev) - 0.5) * 0.1
         x = (flat.view_as(x) * gain + bias).clamp_(0, 1)
-    return (x - MEAN) / STD
+    return zoom((x - MEAN) / STD, ZOOM)
+
+
+def zoom(x, z):
+    """Centre crop of side z*H resized back to HxW (bilinear) on (..., 3, H, W). patch_957.py copies this source into the inference stage."""
+    if z >= 1.0:
+        return x
+    H, W = x.shape[-2:]
+    h, w = round(H * z), round(W * z)
+    t, l = (H - h) // 2, (W - w) // 2
+    y = F.interpolate(x[..., t:t + h, l:l + w].flatten(0, -4), size=(H, W), mode="bilinear", align_corners=False)
+    return y.view(*x.shape[:-2], H, W)
 
 
 class RaptorClassifier(nn.Module):
@@ -200,7 +212,7 @@ def gold_auc(P):
 
 
 def save(sd, name, **meta):
-    torch.save({"model": sd, "arch": ARCH, "res": 320, "lab": LAB, **meta}, f"{OUT}/{name}")
+    torch.save({"model": sd, "arch": ARCH, "res": 320, "lab": LAB, "zoom": ZOOM, **meta}, f"{OUT}/{name}")
 
 
 t0 = time.time()
@@ -269,7 +281,7 @@ P = 0.5 * (predict(gold_ids, K_TTA) + predict(gold_ids, K_TTA, flip=True))   # a
 au_tta, aucs_tta = gold_auc(P)
 json.dump({"arch": ARCH, "swa_gold_tta": au_tta, "last_gold_tta": last_tta, "swa_aucs_tta": aucs_tta, "hist": hist,
            "epochs": epochs, "swa_over": len(snapshots), "bb_lr": BB_LR, "drop_path": DROP_PATH, "grad_ckpt": ckpt_on,
-           "n_train": len(train_ids), "fold": FOLD, "targets": TARGETS, "compile": COMPILE, "gold_pred": {u: p.tolist() for u, p in zip(gold_ids, P)}},
+           "n_train": len(train_ids), "fold": FOLD, "targets": TARGETS, "compile": COMPILE, "zoom": ZOOM, "gold_pred": {u: p.tolist() for u, p in zip(gold_ids, P)}},
           open(f"{OUT}/m{TAG}.json", "w"), indent=1)
 if heldout:   # teacher: out-of-fold predictions of the saved (SWA) model, 24 windows + mirror
     Q = 0.5 * (predict(heldout, K_EVAL) + predict(heldout, K_EVAL, flip=True))

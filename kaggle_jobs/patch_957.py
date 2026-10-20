@@ -5,9 +5,10 @@ deadline), so they never take R7's time (R7 is capped at 8.3 h from notebook sta
 Final cell: out = (1 - W_MEM) * base + W_MEM * mean member rank (base where no member scored a study), then
 optionally Fracture <- rank(Fracture + ALPHA * Contusion).
 
-usage: python -P patch_957.py OUT_DIR SLUG W_MEM ALPHA [--arm FILE=ARCH ...] [--kernel OWNER/SLUG ...]
+usage: python -P patch_957.py OUT_DIR SLUG W_MEM ALPHA [--arm FILE=ARCH[@ZOOM] ...] [--kernel OWNER/SLUG ...]
+ZOOM < 1 wraps that arm in the trainer's own zoom() (source copied from members-a/train_member.py).
 """
-import argparse, json, re
+import argparse, ast, json, re
 from pathlib import Path
 
 ap = argparse.ArgumentParser()
@@ -34,7 +35,8 @@ def code(text):
 if a.arm:
     s = "".join(cells[2]["source"])
     s = sub(s, "%%writefile /tmp/raptor_run.py", "%%writefile /tmp/member_run.py")
-    arms = "".join(f'    {{"file": "{f}", "arch": "{arch}", "res": 320, "w": 1.0}},\n' for f, arch in (x.split("=", 1) for x in a.arm))
+    specs = [(f, *(arch.split("@") + ["1.0"])[:2]) for f, arch in (x.split("=", 1) for x in a.arm)]
+    arms = "".join(f'    {{"file": "{f}", "arch": "{arch}", "res": 320, "w": 1.0, "zoom": {float(z)}}},\n' for f, arch, z in specs)
     s, k = re.subn(r"ARMS = \[[^\n]*\n(?:    \{[^\n]*\n)+\]\n", "ARMS = [   # [members] our ConvNeXt members (trained on the Raptor-96 corpus)\n" + arms + "]\n", s, count=1)
     assert k == 1
     s = sub(s, "kw = dict(pretrained=pretrained, num_classes=0, in_chans=3, img_size=INPUT_RES)",
@@ -61,6 +63,17 @@ if a.arm:
         _raw.to_csv(f"/kaggle/working/member_raw_arm{a_}.csv", index=False)
 ''')
     s = sub(s, 'out = "/kaggle/working/raptor_sub.csv"', 'out = "/kaggle/working/member_sub.csv"')
+    tsrc = (here / "members-a/train_member.py").read_text(encoding="utf-8")
+    zsrc = next(ast.get_source_segment(tsrc, n) for n in ast.parse(tsrc).body if isinstance(n, ast.FunctionDef) and n.name == "zoom")
+    s = sub(s, "def infer_pair_probs(model, plain, mirrored, device):",
+            "# [members] the trainer's zoom(), copied verbatim by patch_957.py: a ZOOM<1 member sees the same central close-up as in training\n"
+            + zsrc + "\n\n\nclass _Zoom(nn.Module):\n    def __init__(self, m, z):\n        super().__init__(); self.m, self.z = m, z\n\n"
+            "    def forward(self, x):\n        return self.m(zoom(x, self.z))\n\n\n"
+            "def infer_pair_probs(model, plain, mirrored, device):")
+    s = sub(s, '            model, res = load_model(find_weight_file(arm["file"]), arm["arch"], arm["res"], d)\n',
+            '            model, res = load_model(find_weight_file(arm["file"]), arm["arch"], arm["res"], d)\n'
+            '            if arm.get("zoom", 1.0) < 1.0:   # [members] close-up member\n'
+            '                model = _Zoom(model, arm["zoom"]).eval()\n')
     run = (f"# [members] Stage 2b: our {len(a.arm)} ConvNeXt member(s), AFTER R7 so they never take its time; capped so the notebook\n"
            "# ends well inside 9 h. Any failure here keeps the base submission (the final cell blends only what was scored).\n"
            "import os, sys, time, subprocess\n"
